@@ -18,7 +18,7 @@ PASSED_MBEDTLS_CFLAGS := -O3 -fPIC -nostdinc -nostdlib -DCKB_DECLARATION_ONLY -I
 # docker pull nervos/ckb-riscv-gnu-toolchain:gnu-bionic-20191012
 BUILDER_DOCKER := nervos/ckb-riscv-gnu-toolchain@sha256:aae8a3f79705f67d505d1f1d5ddc694a4fd537ed1c7e9622420a470d59ba2ec3
 
-all: build/simple_udt build/anyone_can_pay build/always_success build/validate_signature_rsa
+all: build/simple_udt build/anyone_can_pay build/always_success build/validate_signature_rsa build/anyone_can_pay_lib
 
 all-via-docker: ${PROTOCOL_HEADER}
 	docker run --rm -v `pwd`:/code ${BUILDER_DOCKER} bash -c "cd /code && make"
@@ -63,6 +63,11 @@ validate_signature_rsa-via-docker:
 
 build/validate_signature_rsa: c/validate_signature_rsa.c deps/mbedtls/library/libmbedcrypto.a
 	$(CC) $(CFLAGS_MBEDTLS) $(LDFLAGS_MBEDTLS) -D__SHARED_LIBRARY__ -fPIC -fPIE -pie -Wl,--dynamic-list c/rsa.syms -o $@ $^
+	$(OBJCOPY) --only-keep-debug $@ $@.debug
+	$(OBJCOPY) --strip-debug --strip-all $@
+
+build/anyone_can_pay_lib: c/anyone_can_pay_lib.c ${PROTOCOL_HEADER} 
+	$(CC) $(CFLAGS) $(LDFLAGS)  -D__SHARED_LIBRARY__ -fPIC -fPIE -pie -Wl,--dynamic-list c/acp.syms -o $@ $<
 	$(OBJCOPY) --only-keep-debug $@ $@.debug
 	$(OBJCOPY) --strip-debug --strip-all $@
 
@@ -119,6 +124,7 @@ clean:
 	make -C deps/mbedtls/library clean
 	rm -f build/validate_signature_rsa
 	rm -f build/validate_signature_rsa_sim
+	rm -rf build/anyone_can_pay_lib
 	cargo clean
 
 dist: clean all
